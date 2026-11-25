@@ -3,7 +3,7 @@
 # Run: sh build.sh
 set -e
 cd "$(dirname "$0")"
-SRC="bg.js grab.js lib.js reader.js page.js reader.html reader.css"
+SRC="LICENSE NOTICE bg.js grab.js lib.js reader.js page.js reader.html reader.css"
 rm -rf chrome edge firefox dist; mkdir -p dist
 for t in chrome edge firefox; do
   mkdir "$t"; cp $SRC "$t"/; cp -r icons "$t"/
@@ -22,7 +22,8 @@ hosts = 'chatgpt.com chat.openai.com gemini.google.com claude.ai copilot.microso
 css = re.sub(r'(?m)^(\s*)body \{', r'\1.box {', read('reader.css').replace(':root', '.box')) + read('userscript.css')
 head = ['// ==UserScript==', '// @name         Untouch Flow AI Export', f'// @version      {version}',
         '// @description  Read an AI chat and export it as Markdown or PDF with code blocks and tables intact',
-        '// @author       Sufarwee Dunyamat (sufarweededev)'] + [f'// @match        https://{h}/*' for h in hosts] + [
+        '// @author       Sufarwee Dunyamat (sufarweededev)',
+        '// @license      Apache-2.0', '// @copyright    2026, Sufarwee Dunyamat (https://github.com/sufarwee)'] + [f'// @match        https://{h}/*' for h in hosts] + [
         '// @noframes', '// @grant        none', '// @run-at       document-end', '// ==/UserScript==']
 body = '\n'.join(read(f) for f in ['lib.js', 'grab.js', 'reader.js'])
 out = '\n'.join(head) + "\n\n(() => {\n'use strict';\n" + body + f'\nconst CSS = {json.dumps(css)};\n' + read('userscript-ui.js') + '})();\n'

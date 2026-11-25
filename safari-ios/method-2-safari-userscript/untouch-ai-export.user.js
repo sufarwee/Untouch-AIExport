@@ -3,6 +3,8 @@
 // @version      1.0.0
 // @description  Read an AI chat and export it as Markdown or PDF with code blocks and tables intact
 // @author       Sufarwee Dunyamat (sufarweededev)
+// @license      Apache-2.0
+// @copyright    2026, Sufarwee Dunyamat (https://github.com/sufarwee)
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
 // @match        https://gemini.google.com/*

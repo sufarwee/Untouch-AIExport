@@ -50,3 +50,10 @@ Raise `version` in both manifest files before each new upload.
 **Privacy text:** The extension reads the current tab only when you click its icon. The chat is kept in the browser's temporary session storage to show the reader. Nothing is sent to any server.
 
 **Reviewer notes:** Open an AI chat (or any page), click the toolbar icon, and a reader tab opens with the page content and export buttons. No account or server is needed.
+
+## License
+
+Source code: [Apache License 2.0](LICENSE). If you redistribute it, keep the license and the credit in [NOTICE](NOTICE).
+The name and logo are not covered: see [TRADEMARKS.md](TRADEMARKS.md).
+
+Copyright 2026 Sufarwee Dunyamat (sufarweededev)
