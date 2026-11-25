@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Untouch Flow AI Export",
+  "version": "1.0.0",
+  "description": "Read an AI chat in a clean view and export it as Markdown with code blocks and tables intact.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "background": { "service_worker": "bg.js" },
+  "action": {
+    "default_title": "Read & export this AI chat",
+    "default_icon": { "16": "icons/icon-16.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" }
+  },
+  "icons": { "16": "icons/icon-16.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "author": "Sufarwee Dunyamat (sufarweededev)"
+}

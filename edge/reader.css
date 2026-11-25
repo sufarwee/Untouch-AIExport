@@ -1,0 +1,46 @@
+:root { --bg: #fff; --fg: #18181b; --soft: #f4f4f5; --line: #e4e4e7; --mut: #71717a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #18181b; --fg: #f4f4f5; --soft: #27272a; --line: #3f3f46; --mut: #a1a1aa; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+header { position: sticky; top: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); font-size: 14px; }
+.grow { flex: 1; }
+button { padding: 7px 14px; border: 0; border-radius: 7px; background: #4f46e5; color: #fff; font-weight: 600; cursor: pointer; }
+#status, main { max-width: 800px; margin: 16px auto; padding: 0 16px; }
+#status { color: var(--mut); font-size: 13px; }
+section { margin-bottom: 28px; overflow-wrap: break-word; }
+section.you { background: var(--soft); border-radius: 12px; padding: 4px 16px; }
+.role { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--mut); }
+pre { position: relative; overflow-x: auto; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 14px 16px; font: 13.5px/1.6 Menlo, Consolas, monospace; }
+pre[data-lang] { padding-top: 32px; }
+pre[data-lang]::before { content: attr(data-lang); position: absolute; top: 7px; left: 16px; color: #94a3b8; font-size: 11px; }
+:not(pre) > code { background: var(--soft); border-radius: 4px; padding: 1px 5px; font-size: .88em; }
+table { display: block; overflow-x: auto; border-collapse: collapse; margin: 14px 0; }
+th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+th, tr:nth-child(even) td { background: var(--soft); }
+blockquote { margin: 0; padding-left: 14px; border-left: 3px solid var(--line); color: var(--mut); }
+dialog { width: min(360px, 90vw); border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); }
+dialog form { display: flex; flex-direction: column; gap: 10px; }
+dialog h2, dialog p { margin: 0; }
+dialog p { overflow-wrap: anywhere; font: 13px Menlo, Consolas, monospace; }
+dialog select { width: 100%; padding: 7px; font: inherit; }
+dialog .cancel { background: var(--soft); color: var(--fg); }
+/* Phones: keep the sticky toolbar small so the chat stays readable. */
+@media (max-width: 600px) {
+  header { gap: 6px; padding: max(6px, env(safe-area-inset-top)) 8px 6px; font-size: 12px; }
+  header button { padding: 5px 9px; min-height: 32px; font-size: 12px; }
+  header img, header strong, .grow { display: none; }
+  header input[type=range] { width: 90px; }
+}
+@media print {
+  :root { --bg: #fff; --fg: #111; --soft: #f4f4f5; --line: #bbb; --mut: #555; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  header, #status, dialog { display: none !important; }
+  main { max-width: none; margin: 0; padding: 0; font-size: 12px; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; background: #f4f4f5; color: #111; border: 1px solid #bbb; }
+  table { display: table; width: 100%; overflow: visible; }
+  /* Thonburi keeps Thai text copyable and searchable in the PDF; the system default scrambles it. */
+  body { font-family: Thonburi, sans-serif; }
+  pre, code { font-family: Menlo, Consolas, Thonburi, monospace; }
+  /* A table moves whole to the next page. One taller than a page can only break between rows, repeating its header. */
+  table, tr, .role { break-inside: avoid; }
+  thead { display: table-header-group; }
+}

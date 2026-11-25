@@ -1,0 +1,5 @@
+.box { position: fixed; inset: 0; z-index: 2147483647; overflow: auto; -webkit-overflow-scrolling: touch; text-align: left; }
+.box[hidden], .fab[hidden] { display: none; }
+.fab { position: fixed; right: 10px; top: 38%; z-index: 2147483647; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+button { min-height: 36px; }
+@media print { .box { position: static; overflow: visible; } .fab { display: none; } }

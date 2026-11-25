@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Untouch Flow AI Export</title>
+  <link rel="icon" href="icons/icon-48.png">
+  <link rel="stylesheet" href="reader.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon-48.png" width="32" height="32" alt="">
+    <strong>AI Export</strong>
+    <label><input type="checkbox" id="icons" checked> Remove icons / emoji</label>
+    <label><input type="checkbox" id="boldHeadings" checked> Bold headings</label>
+    <button id="scroll" aria-pressed="false" title="Space">▶ Auto Scroll</button>
+    <label>Speed <input type="range" id="speed" min="10" max="400" step="10" value="60"> <output id="speedNum">60</output> px/s</label>
+    <span class="grow"></span>
+    <button id="export">Export…</button>
+    <button id="copyMd">Copy for Notion (MD)</button>
+    <button id="copyRich">Copy for Notes / Docs</button>
+  </header>
+  <p id="status" role="status"></p>
+  <main id="chat"></main>
+  <dialog id="exportBox" aria-labelledby="exportTitle">
+    <form method="dialog">
+      <h2 id="exportTitle">Export</h2>
+      <label>Which AI is this chat from?
+        <select id="ai">
+          <option value="chatgpt">ChatGPT</option><option value="gemini">Gemini</option><option value="claude">Claude</option>
+          <option value="copilot">Copilot</option><option value="deepseek">DeepSeek</option><option value="kimi">Kimi</option>
+          <option value="qwen">Qwen</option><option value="grok">Grok</option><option value="minimax">MiniMax</option>
+          <option value="manus">Manus</option><option value="meta">Meta AI</option><option value="muse">Muse</option>
+          <option value="ai">Other</option>
+        </select>
+      </label>
+      <p id="nameShow"></p>
+      <button value="md">Markdown (.md)</button>
+      <button value="pdf">PDF</button>
+      <button value="" class="cancel">Cancel</button>
+      <small>PDF opens the print window: choose "Save as PDF".</small>
+    </form>
+  </dialog>
+  <script src="lib.js"></script>
+  <script src="reader.js"></script>
+  <script src="page.js"></script>
+</body>
+</html>

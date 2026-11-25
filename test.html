@@ -1,0 +1,55 @@
+<!DOCTYPE html><meta charset="utf-8"><title>running</title><pre id="out"></pre>
+<script src="lib.js"></script>
+<script>
+const o = { icons: true, boldHeadings: true };
+const fail = [];
+const ok = (name, c) => { if (!c) fail.push(name); };
+const el = clean(`<h2>🚀 Setup</h2><p>## Left over, C# and issue #12 ✨</p>
+<table><thead><tr><th>Name</th><th>OK</th></tr></thead><tbody><tr><td>a|b</td><td>✅</td></tr></tbody></table>
+<pre><div>bash<button>Copy</button></div><code class="hljs language-bash"># comment 🚀
+sudo apt update
+
+
+echo "x"</code></pre>
+<ol start="3"><li><p>one</p><ul><li>sub <code>x</code></li></ul></li><li>two</li></ol>
+<img src=x onerror="document.title='XSS'"><a href="javascript:alert(1)">bad</a><div onclick="x()"><a href="https://example.com/">good</a></div>`, o);
+const m = toMarkdown(el, o);
+ok('heading', m.startsWith('**Setup**'));
+ok('prose hashes', m.includes('\nLeft over, C# and issue #12'));
+ok('table', m.includes('| Name | OK |\n| --- | --- |\n| a\\|b | ✓ |'));
+ok('code verbatim', m.includes('```bash\n# comment 🚀\nsudo apt update\n\n\necho "x"\n```'));
+ok('one blank line', !m.replace(/```[\s\S]*?```/g, 'CODE').includes('\n\n\n'));
+ok('no copy button', !m.includes('Copy'));
+ok('list', m.includes('3. one\n   - sub `x`\n4. two'));
+ok('safe', !/onerror|onclick|javascript:|<img/.test(el.innerHTML));
+ok('link', m.includes('[good](https://example.com/)'));
+const u = toMarkdown(clean(plainToHtml('<div>run &lt;this&gt;\n```sh\n# keep\nls  -a\n```\nthanks</div>'), o), o);
+ok('user fence', u.includes('run <this>') && u.includes('```sh\n# keep\nls  -a\n```') && u.endsWith('thanks'));
+const g = toMarkdown(clean('<code-block><div class="code-block-decoration"><span>Python</span></div><pre><code>print(1)</code></pre></code-block>', o), o);
+ok('gemini code', g === '```python\nprint(1)\n```');
+ok('keep icons', toMarkdown(clean('<h1>🚀 A</h1>', {}), { boldHeadings: false }) === '🚀 A');
+const r = toRichHtml(el), p = toPlainText(el);
+ok('rich code box', /<td [^>]*bgcolor[^>]*><pre [^>]*><code># comment/.test(r) && !r.includes('\u00a0'));
+ok('plain no marks', !p.includes('```') && !p.includes('|---') && !p.includes('**') && p.includes('Name\tOK\na|b\t✓'));
+ok('plain code', p.includes('# comment 🚀\nsudo apt update\n\n\necho "x"'));
+ok('plain list', p.includes('3. one\n   • sub x\n4. two'));
+const day = new Date(2026, 9, 28);
+const name = (host, title, q = '') => fileName({ host, title, messages: [{ role: 'You', html: q }] }, day);
+ok('name', name('gemini.google.com', 'การ config server - Google Gemini') === 'gemini-การconfigserver-28102026.md');
+ok('name 20 chars', name('chatgpt.com', 'abcdefghij klmnopqrst uvwxyz') === 'chatgpt-abcdefghijklmnopqrst-28102026.md');
+ok('name from question', name('gemini.google.com', 'Google Gemini', '<p>Setup nginx?</p>') === 'gemini-Setupnginx-28102026.md');
+ok('name unsafe', name('chat.deepseek.com', '../a/b: #1 🚀 | DeepSeek') === 'deepseek-ab1-28102026.md');
+ok('name chosen ai', fileName({ host: 'example.com', title: 'x' }, day, 'gemini') === 'gemini-x-28102026.md');
+ok('name unknown', name('www.example.com', '') === 'example-chat-28102026.md');
+// userscript path: live nodes in, page untouched
+const live = document.createElement('div');
+const dec = document.createElement('code-block'); const bar = document.createElement('div'); bar.className = 'code-block-decoration'; const lb = document.createElement('span'); lb.textContent = 'Bash'; bar.append(lb);
+const pr = document.createElement('pre'); const cd = document.createElement('code'); cd.textContent = 'ls'; pr.append(cd); dec.append(bar, pr); live.append(dec);
+const before = live.innerHTML;
+ok('live node', toMarkdown(clean(live, o), o) === '```bash\nls\n```');
+const typed = document.createElement('div'); typed.append('a', document.createElement('br'), 'b <i>');
+ok('live user text', toMarkdown(clean(plainToHtml(typed), o), o) === 'a\nb <i>');
+ok('page untouched', live.innerHTML === before);
+document.title = fail.length ? 'FAIL ' + fail.join(', ') : 'PASS';
+out.textContent = r + '\n=====\n' + p;
+</script>
