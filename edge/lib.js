@@ -1,6 +1,10 @@
+// Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0
 // Page HTML -> safe, clean DOM -> Markdown. Headings never use "#"; code blocks are copied verbatim.
 const KEEP = new Set('H1 H2 H3 H4 H5 H6 P PRE CODE TABLE THEAD TBODY TR TH TD UL OL LI BLOCKQUOTE STRONG B EM I DEL S A BR HR DIV'.split(' '));
-const DROP = 'script,style,template,noscript,iframe,button,svg,img,video,audio,canvas,input,textarea,select,nav,form,.sr-only,.cdk-visually-hidden,.code-block-decoration';
+const DROP = 'script,style,template,noscript,iframe,button,svg,img,video,audio,canvas,input,textarea,select,nav,form,.sr-only,.cdk-visually-hidden,.code-block-decoration,.segment-code-header,[data-code-card]>:not(pre),.md-code-block-banner-wrap,.ur-code-block__header,[data-source-locator-ignore]:has(.lucide-copy),[class*="CodeBlock-"]>*>:not(pre,:has(pre))';
+// Code block wrappers, and where each one shows the language name (Gemini, Kimi, Grok, DeepSeek, Qwen, Meta AI, Manus, ChatGPT).
+const CODE_BOX = 'code-block,.segment-code,[data-code-card],.md-code-block,.qwen-markdown-code,.ur-code-block,div:has(>[data-source-locator-ignore]),[class*="CodeBlock-"]';
+const CODE_LANG = '.code-block-decoration span,.segment-code-lang,:scope>:first-child bdi,.md-code-block-banner-wrap span,.qwen-markdown-code-header>div:first-child,.ur-code-block__metadata,:scope>[data-source-locator-ignore]>span,:scope>:first-child .truncate';
 const BLOCK = /^(H[1-6]|P|PRE|TABLE|UL|OL|BLOCKQUOTE|HR|DIV|LI)$/;
 
 function stripIcons(t) {
@@ -18,12 +22,30 @@ function codeText(n) {
 
 function cleanPre(src, doc) {
   const code = src.querySelector('.cm-content') || src.querySelector('code') || src;
-  const label = src.closest('code-block')?.querySelector('.code-block-decoration span')?.textContent;
-  const lang = (code.className.match?.(/language-([\w+#-]+)/)?.[1] || label || '').trim().toLowerCase();
+  const label = src.closest(CODE_BOX)?.querySelector(CODE_LANG)?.textContent;
+  const lang = (code.className.match?.(/language-([\w+#-]+)/)?.[1] || label || '').trim().toLowerCase().replace(/^(plain|text|code)$/, '');
   const pre = doc.createElement('pre'), c = doc.createElement('code');
   if (/^[\w+#-]+$/.test(lang)) pre.dataset.lang = lang;
-  c.textContent = codeText(code).replace(/\n+$/, '');
+  // Monaco (Qwen) keeps each line in its own box, not always in DOM order.
+  // shortcut: Monaco only renders lines near the view, so a very long block can be cut; read the editor model if that happens.
+  const rows = [...src.querySelectorAll('.view-lines > .view-line')].sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top));
+  c.textContent = (rows.length ? rows.map(r => r.textContent.replace(/\u00a0/g, ' ')).join('\n') : codeText(code)).replace(/\n+$/, '');
   pre.append(c);
+  return pre;
+}
+
+function lineCard(card, doc) {
+  const rows = [...card.querySelectorAll('[data-line-index]')].sort((a, b) => a.dataset.lineIndex - b.dataset.lineIndex);
+  const texts = doc.createTreeWalker(card, 4);
+  let lang = '';
+  for (let t; !lang && (t = texts.nextNode());) {
+    if (t.parentElement.closest('[data-line-index]')) break;
+    lang = t.data.trim().match(/^(Plain Text|[A-Za-z][\w+#-]{0,19})$/)?.[1].toLowerCase() || '';
+  }
+  const pre = doc.createElement('pre'), code = doc.createElement('code');
+  if (lang && lang !== 'plain text') pre.dataset.lang = lang;
+  code.textContent = rows.map(r => r.textContent.replace(/\u00a0/g, ' ').replace(/\n$/, '')).join('\n').replace(/\n+$/, '');
+  pre.append(code);
   return pre;
 }
 
@@ -37,6 +59,9 @@ function clean(source, opts, doc = document) {
       if (n.nodeType === 3) { to.append(opts.icons ? stripIcons(n.data) : n.data); continue; }
       if (n.nodeType !== 1) continue;
       if (n.nodeName === 'PRE') { to.append(cleanPre(n, doc)); continue; }
+      // Copilot has no <pre>: a preview card holds one box per line.
+      // shortcut: matches the English aria-label; add other labels if a translated UI uses them.
+      if (n.matches('[role=group][aria-label="Code Preview"]') && n.querySelector('[data-line-index]')) { to.append(lineCard(n, doc)); continue; }
       if (n.matches(DROP)) continue;
       if (n.matches('.katex, .katex-display')) {
         const tex = n.querySelector('annotation')?.textContent;
@@ -95,6 +120,7 @@ function plainToHtml(source) {
 }
 
 function toMarkdown(root, opts) {
+  const topLevel = Math.min(6, ...[...root.querySelectorAll('h1,h2,h3,h4,h5,h6')].map(h => +h.nodeName[1]));
   const kids = n => [...n.childNodes].map(md).join('');
   const bold = s => s.trim() ? `**${s.trim()}**` : '';
   function md(n) {
@@ -124,7 +150,10 @@ function toMarkdown(root, opts) {
     if (tag === 'BR') return '\n';
     if (tag === 'HR') return '\n\n---\n\n';
     const s = kids(n);
-    if (/^H[1-6]$/.test(tag)) return `\n\n${opts.boldHeadings ? bold(s) : s.trim()}\n\n`;
+    if (/^H[1-6]$/.test(tag)) {
+      if (opts.outline && s.trim()) return `\n\n${'#'.repeat(Math.min(6, 3 + +tag[1] - topLevel))} ${s.trim()}\n\n`;
+      return `\n\n${opts.boldHeadings ? bold(s) : s.trim()}\n\n`;
+    }
     if (tag === 'STRONG' || tag === 'B') return bold(s);
     if (tag === 'EM' || tag === 'I') return s.trim() ? `*${s.trim()}*` : '';
     if (tag === 'DEL' || tag === 'S') return `~~${s}~~`;
@@ -180,18 +209,41 @@ function toPlainText(root) {
 }
 
 // <ai>-<topic, 20 characters>-<DDMMYYYY>.md
-const AI_HOSTS = ['chatgpt', 'openai', 'gemini', 'claude', 'copilot', 'deepseek', 'kimi', 'qwen', 'grok', 'minimax', 'manus', 'muse', 'meta'];
+const AI_HOSTS = ['chatgpt', 'openai', 'gemini', 'claude', 'copilot', 'deepseek', 'kimi', 'qwen', 'grok', 'minimax', 'manus', 'muse', 'meta', 'perplexity'];
 function detectAi(host = '') {
   const labels = host.split('.');
   const found = AI_HOSTS.find(n => labels.includes(n));
   return found === 'openai' ? 'chatgpt' : found || labels.at(-2) || 'ai';
 }
 
+// Tab title without the site name.
+function chatTitle(chat) {
+  const site = /^(google gemini|gemini|chatgpt|claude|microsoft copilot|copilot|deepseek|kimi|qwen( chat)?|grok|minimax|manus|meta ai|perplexity)$/i;
+  return (chat.title || '').split(/\s+[-|–—]\s+/).filter(p => !site.test(p.trim())).join(' - ').trim();
+}
+
+// The whole export. With opts.outline: # chat title, ## each question, and the headings inside a message from ### down.
+function toDocument(parts, chat, opts) {
+  let n = 0;
+  const body = parts.map((p, i) => {
+    let head = '';
+    if (opts.outline && p.role) {
+      const asked = p.role === 'You';
+      if (asked || !i) {
+        // shortcut: the section name is the first line of the question, cut at 80 characters.
+        const line = asked ? [...(toPlainText(p.el).split('\n').find(l => l.trim()) || '').trim()] : [];
+        head = `## ${++n}. ${line.slice(0, 80).join('')}${line.length > 80 ? '…' : ''}`.trim() + '\n\n';
+      }
+    }
+    return head + (p.role ? `**${p.role}**\n\n` : '') + toMarkdown(p.el, opts);
+  }).join('\n\n---\n\n');
+  return (opts.outline ? `# ${chatTitle(chat) || 'Chat'}\n\n` : '') + body + '\n';
+}
+
 function fileName(chat, date = new Date(), ai = detectAi(chat.host)) {
   const squash = s => s.replace(/[\\/:*?"<>|#.\-\s\u0000-\u001f]+/g, '').replace(/\p{Extended_Pictographic}|\uFE0F|\u200D/gu, '');
-  // Drop the site name from the tab title; some sites show nothing else, so then use the first question.
-  const site = /^(google gemini|gemini|chatgpt|claude|microsoft copilot|copilot|deepseek|kimi|qwen( chat)?|grok|minimax|manus|meta ai)$/i;
-  let topic = (chat.title || '').split(/\s+[-|–—]\s+/).filter(p => !site.test(p.trim())).join(' ');
+  // Some sites put only their own name in the tab title; then use the first question.
+  let topic = chatTitle(chat);
   if (!squash(topic)) {
     const first = (chat.messages || []).find(m => m.role === 'You') || chat.messages?.[0];
     topic = first?.html ? parse(first.html).textContent : '';

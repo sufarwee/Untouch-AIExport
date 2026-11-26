@@ -1,3 +1,4 @@
+/* Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0 */
 .box { position: fixed; inset: 0; z-index: 2147483647; overflow: auto; -webkit-overflow-scrolling: touch; text-align: left; }
 .box[hidden], .fab[hidden] { display: none; }
 .fab { position: fixed; right: 10px; top: 38%; z-index: 2147483647; box-shadow: 0 4px 14px rgba(0,0,0,.4); }

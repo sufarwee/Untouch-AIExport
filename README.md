@@ -11,24 +11,26 @@ Read an AI chat in a clean view and export it as Markdown or PDF. Code blocks an
 | iPhone / iPad | see [safari-ios/README.md](safari-ios/README.md) |
 
 ## Use
-1. Open a chat. Scroll to the top first so older messages are loaded.
-2. Click the extension icon. A reader tab opens. (To export only part of a chat, select that text first.)
+1. Open a chat.
+2. Click the extension icon. The chat scrolls by itself to load every message (keep the tab open until the reader appears), then a reader tab opens. (To export only part of a chat, select that text first.)
 3. Read by scrolling, or press Auto Scroll (Space = play/pause, Esc = stop).
 4. Export:
    - **Export…**: confirm which AI the chat is from (the detected one is preselected), then choose Markdown or PDF (print window → Save as PDF).
      The file is named `<ai>-<first 20 characters of the chat title>-<DDMMYYYY>.md`, e.g. `gemini-การconfigserver-28102026.md`.
    - **Copy for Notes / Docs** (also Word and TextEdit): tables stay tables, code goes into a grey one-cell box (these apps have no pasteable code block). A plain-text editor gets tab-separated tables and no Markdown marks.
+   - Turn on **Outline** first if you want `#` headings.
    - **Copy for Notion (MD)**: Notion turns it into code blocks and tables.
 
 ## Export rules
-- Headings never use `#`; they become bold lines (or plain lines).
+- Headings never use `#` by default; they become bold lines (or plain lines).
+- **Outline (# H1, H2…)** adds structure to the Markdown: `#` chat title, `##` each question (numbered), and the answer's own headings from `###` down.
 - Code blocks are copied exactly, including `#` comments and emoji.
 - "Remove icons / emoji" applies to normal text; ✅ ❌ become ✓ ✗.
 - Images are not exported.
 
 ## Limits
-- Message detection covers ChatGPT, Claude and Gemini. Other sites export the page's main area.
-- Only messages the page has loaded are exported.
+- Message detection covers ChatGPT, Claude, Gemini, Perplexity, Copilot, Meta AI, Grok, Kimi, DeepSeek, Qwen, Manus and MiniMax (Claude not yet checked on the live site). Other sites export the page's main area.
+- The reader warns when a message had no text or the chat was too long to load completely. Attachments are not exported.
 - PDF: a table is never split unless it is taller than a page; then it breaks between rows and repeats the header. Copyable Thai text relies on the Thonburi font (Apple only; not tested elsewhere). Copy commands from the .md, not the PDF, where long lines are wrapped.
 
 ## Build and test
@@ -56,4 +58,4 @@ Raise `version` in both manifest files before each new upload.
 Source code: [Apache License 2.0](LICENSE). If you redistribute it, keep the license and the credit in [NOTICE](NOTICE).
 The name and logo are not covered: see [TRADEMARKS.md](TRADEMARKS.md).
 
-Copyright 2026 Sufarwee Dunyamat (sufarweededev)
+Copyright 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) — [github.com/sufarwee](https://github.com/sufarwee)

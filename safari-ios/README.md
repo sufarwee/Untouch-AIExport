@@ -11,7 +11,7 @@
 2. Put `untouch-ai-export.user.js` in your Userscripts folder (Files app).
 3. Open a chat in Safari (`ᴀA` > Userscripts > script on), refresh, tap **AI Export**.
 
-Works on: ChatGPT, Gemini, Claude, Copilot, DeepSeek, Kimi, Qwen, Grok, Manus, Meta AI.
+Runs on: ChatGPT, Gemini, Claude, Perplexity, Copilot, DeepSeek, Kimi, Qwen, Grok, Manus, Meta AI, MiniMax. Separate user/AI messages are detected only for ChatGPT, Gemini, Claude, Perplexity, Copilot, Meta AI, Grok, Kimi, DeepSeek, Qwen, Manus and MiniMax; the others export the page's main area.
 PDF: tap Export… > PDF, then use the share button in the print preview to save it.
 
 ## Orion

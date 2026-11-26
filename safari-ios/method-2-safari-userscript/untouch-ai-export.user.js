@@ -2,7 +2,7 @@
 // @name         Untouch Flow AI Export
 // @version      1.0.0
 // @description  Read an AI chat and export it as Markdown or PDF with code blocks and tables intact
-// @author       Sufarwee Dunyamat (sufarweededev)
+// @author       Sufarwee Dunyamat (SufarweeDeDev)
 // @license      Apache-2.0
 // @copyright    2026, Sufarwee Dunyamat (https://github.com/sufarwee)
 // @match        https://chatgpt.com/*
@@ -13,11 +13,18 @@
 // @match        https://chat.deepseek.com/*
 // @match        https://kimi.com/*
 // @match        https://www.kimi.com/*
+// @match        https://kimi.ai/*
+// @match        https://www.kimi.ai/*
+// @match        https://copilot.com/*
+// @match        https://www.copilot.com/*
 // @match        https://chat.qwen.ai/*
 // @match        https://grok.com/*
 // @match        https://manus.im/*
 // @match        https://meta.ai/*
 // @match        https://www.meta.ai/*
+// @match        https://perplexity.ai/*
+// @match        https://www.perplexity.ai/*
+// @match        https://agent.minimax.io/*
 // @noframes
 // @grant        none
 // @run-at       document-end
@@ -25,9 +32,13 @@
 
 (() => {
 'use strict';
+// Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0
 // Page HTML -> safe, clean DOM -> Markdown. Headings never use "#"; code blocks are copied verbatim.
 const KEEP = new Set('H1 H2 H3 H4 H5 H6 P PRE CODE TABLE THEAD TBODY TR TH TD UL OL LI BLOCKQUOTE STRONG B EM I DEL S A BR HR DIV'.split(' '));
-const DROP = 'script,style,template,noscript,iframe,button,svg,img,video,audio,canvas,input,textarea,select,nav,form,.sr-only,.cdk-visually-hidden,.code-block-decoration';
+const DROP = 'script,style,template,noscript,iframe,button,svg,img,video,audio,canvas,input,textarea,select,nav,form,.sr-only,.cdk-visually-hidden,.code-block-decoration,.segment-code-header,[data-code-card]>:not(pre),.md-code-block-banner-wrap,.ur-code-block__header,[data-source-locator-ignore]:has(.lucide-copy),[class*="CodeBlock-"]>*>:not(pre,:has(pre))';
+// Code block wrappers, and where each one shows the language name (Gemini, Kimi, Grok, DeepSeek, Qwen, Meta AI, Manus, ChatGPT).
+const CODE_BOX = 'code-block,.segment-code,[data-code-card],.md-code-block,.qwen-markdown-code,.ur-code-block,div:has(>[data-source-locator-ignore]),[class*="CodeBlock-"]';
+const CODE_LANG = '.code-block-decoration span,.segment-code-lang,:scope>:first-child bdi,.md-code-block-banner-wrap span,.qwen-markdown-code-header>div:first-child,.ur-code-block__metadata,:scope>[data-source-locator-ignore]>span,:scope>:first-child .truncate';
 const BLOCK = /^(H[1-6]|P|PRE|TABLE|UL|OL|BLOCKQUOTE|HR|DIV|LI)$/;
 
 function stripIcons(t) {
@@ -45,12 +56,30 @@ function codeText(n) {
 
 function cleanPre(src, doc) {
   const code = src.querySelector('.cm-content') || src.querySelector('code') || src;
-  const label = src.closest('code-block')?.querySelector('.code-block-decoration span')?.textContent;
-  const lang = (code.className.match?.(/language-([\w+#-]+)/)?.[1] || label || '').trim().toLowerCase();
+  const label = src.closest(CODE_BOX)?.querySelector(CODE_LANG)?.textContent;
+  const lang = (code.className.match?.(/language-([\w+#-]+)/)?.[1] || label || '').trim().toLowerCase().replace(/^(plain|text|code)$/, '');
   const pre = doc.createElement('pre'), c = doc.createElement('code');
   if (/^[\w+#-]+$/.test(lang)) pre.dataset.lang = lang;
-  c.textContent = codeText(code).replace(/\n+$/, '');
+  // Monaco (Qwen) keeps each line in its own box, not always in DOM order.
+  // shortcut: Monaco only renders lines near the view, so a very long block can be cut; read the editor model if that happens.
+  const rows = [...src.querySelectorAll('.view-lines > .view-line')].sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top));
+  c.textContent = (rows.length ? rows.map(r => r.textContent.replace(/\u00a0/g, ' ')).join('\n') : codeText(code)).replace(/\n+$/, '');
   pre.append(c);
+  return pre;
+}
+
+function lineCard(card, doc) {
+  const rows = [...card.querySelectorAll('[data-line-index]')].sort((a, b) => a.dataset.lineIndex - b.dataset.lineIndex);
+  const texts = doc.createTreeWalker(card, 4);
+  let lang = '';
+  for (let t; !lang && (t = texts.nextNode());) {
+    if (t.parentElement.closest('[data-line-index]')) break;
+    lang = t.data.trim().match(/^(Plain Text|[A-Za-z][\w+#-]{0,19})$/)?.[1].toLowerCase() || '';
+  }
+  const pre = doc.createElement('pre'), code = doc.createElement('code');
+  if (lang && lang !== 'plain text') pre.dataset.lang = lang;
+  code.textContent = rows.map(r => r.textContent.replace(/\u00a0/g, ' ').replace(/\n$/, '')).join('\n').replace(/\n+$/, '');
+  pre.append(code);
   return pre;
 }
 
@@ -64,6 +93,9 @@ function clean(source, opts, doc = document) {
       if (n.nodeType === 3) { to.append(opts.icons ? stripIcons(n.data) : n.data); continue; }
       if (n.nodeType !== 1) continue;
       if (n.nodeName === 'PRE') { to.append(cleanPre(n, doc)); continue; }
+      // Copilot has no <pre>: a preview card holds one box per line.
+      // shortcut: matches the English aria-label; add other labels if a translated UI uses them.
+      if (n.matches('[role=group][aria-label="Code Preview"]') && n.querySelector('[data-line-index]')) { to.append(lineCard(n, doc)); continue; }
       if (n.matches(DROP)) continue;
       if (n.matches('.katex, .katex-display')) {
         const tex = n.querySelector('annotation')?.textContent;
@@ -122,6 +154,7 @@ function plainToHtml(source) {
 }
 
 function toMarkdown(root, opts) {
+  const topLevel = Math.min(6, ...[...root.querySelectorAll('h1,h2,h3,h4,h5,h6')].map(h => +h.nodeName[1]));
   const kids = n => [...n.childNodes].map(md).join('');
   const bold = s => s.trim() ? `**${s.trim()}**` : '';
   function md(n) {
@@ -151,7 +184,10 @@ function toMarkdown(root, opts) {
     if (tag === 'BR') return '\n';
     if (tag === 'HR') return '\n\n---\n\n';
     const s = kids(n);
-    if (/^H[1-6]$/.test(tag)) return `\n\n${opts.boldHeadings ? bold(s) : s.trim()}\n\n`;
+    if (/^H[1-6]$/.test(tag)) {
+      if (opts.outline && s.trim()) return `\n\n${'#'.repeat(Math.min(6, 3 + +tag[1] - topLevel))} ${s.trim()}\n\n`;
+      return `\n\n${opts.boldHeadings ? bold(s) : s.trim()}\n\n`;
+    }
     if (tag === 'STRONG' || tag === 'B') return bold(s);
     if (tag === 'EM' || tag === 'I') return s.trim() ? `*${s.trim()}*` : '';
     if (tag === 'DEL' || tag === 'S') return `~~${s}~~`;
@@ -207,18 +243,41 @@ function toPlainText(root) {
 }
 
 // <ai>-<topic, 20 characters>-<DDMMYYYY>.md
-const AI_HOSTS = ['chatgpt', 'openai', 'gemini', 'claude', 'copilot', 'deepseek', 'kimi', 'qwen', 'grok', 'minimax', 'manus', 'muse', 'meta'];
+const AI_HOSTS = ['chatgpt', 'openai', 'gemini', 'claude', 'copilot', 'deepseek', 'kimi', 'qwen', 'grok', 'minimax', 'manus', 'muse', 'meta', 'perplexity'];
 function detectAi(host = '') {
   const labels = host.split('.');
   const found = AI_HOSTS.find(n => labels.includes(n));
   return found === 'openai' ? 'chatgpt' : found || labels.at(-2) || 'ai';
 }
 
+// Tab title without the site name.
+function chatTitle(chat) {
+  const site = /^(google gemini|gemini|chatgpt|claude|microsoft copilot|copilot|deepseek|kimi|qwen( chat)?|grok|minimax|manus|meta ai|perplexity)$/i;
+  return (chat.title || '').split(/\s+[-|–—]\s+/).filter(p => !site.test(p.trim())).join(' - ').trim();
+}
+
+// The whole export. With opts.outline: # chat title, ## each question, and the headings inside a message from ### down.
+function toDocument(parts, chat, opts) {
+  let n = 0;
+  const body = parts.map((p, i) => {
+    let head = '';
+    if (opts.outline && p.role) {
+      const asked = p.role === 'You';
+      if (asked || !i) {
+        // shortcut: the section name is the first line of the question, cut at 80 characters.
+        const line = asked ? [...(toPlainText(p.el).split('\n').find(l => l.trim()) || '').trim()] : [];
+        head = `## ${++n}. ${line.slice(0, 80).join('')}${line.length > 80 ? '…' : ''}`.trim() + '\n\n';
+      }
+    }
+    return head + (p.role ? `**${p.role}**\n\n` : '') + toMarkdown(p.el, opts);
+  }).join('\n\n---\n\n');
+  return (opts.outline ? `# ${chatTitle(chat) || 'Chat'}\n\n` : '') + body + '\n';
+}
+
 function fileName(chat, date = new Date(), ai = detectAi(chat.host)) {
   const squash = s => s.replace(/[\\/:*?"<>|#.\-\s\u0000-\u001f]+/g, '').replace(/\p{Extended_Pictographic}|\uFE0F|\u200D/gu, '');
-  // Drop the site name from the tab title; some sites show nothing else, so then use the first question.
-  const site = /^(google gemini|gemini|chatgpt|claude|microsoft copilot|copilot|deepseek|kimi|qwen( chat)?|grok|minimax|manus|meta ai)$/i;
-  let topic = (chat.title || '').split(/\s+[-|–—]\s+/).filter(p => !site.test(p.trim())).join(' ');
+  // Some sites put only their own name in the tab title; then use the first question.
+  let topic = chatTitle(chat);
   if (!squash(topic)) {
     const first = (chat.messages || []).find(m => m.role === 'You') || chat.messages?.[0];
     topic = first?.html ? parse(first.html).textContent : '';
@@ -227,8 +286,11 @@ function fileName(chat, date = new Date(), ai = detectAi(chat.host)) {
   return `${ai}-${[...squash(topic)].slice(0, 20).join('') || 'chat'}-${two(date.getDate())}${two(date.getMonth() + 1)}${date.getFullYear()}.md`;
 }
 
-// Runs inside the page. live=true returns DOM nodes (userscript); otherwise HTML strings (extension). Reads only.
-function grab(live) {
+// Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0
+// Runs inside the page. live=true returns DOM nodes (userscript); otherwise HTML strings (extension).
+// Changes nothing on the page; it only scrolls the chat to load messages, then scrolls back.
+// executeScript sends this one function to the page, so every helper has to live inside it.
+async function grab(live) {
   const title = document.title;
   const pick = el => live ? el : el.innerHTML;
   const sel = getSelection();
@@ -248,22 +310,96 @@ function grab(live) {
     }
     return { title, messages: [{ role: '', html: pick(box) }] };
   }
-  // shortcut: per-site selectors for ChatGPT, Claude and Gemini only; other sites export the whole <main>. Add a selector when a site needs it.
-  const user = '[data-message-author-role="user"], [data-testid="user-message"], user-query';
-  const ai = '[data-message-author-role="assistant"], .font-claude-response, model-response';
-  const found = [...document.querySelectorAll(`${user}, ${ai}`)];
-  const top = found.filter(el => !found.some(o => o !== el && o.contains(el)));
-  const messages = top.map(el => el.matches(user)
-    ? { role: 'You', html: pick(el.querySelector('.query-text') || el) }
-    : { role: 'AI', html: pick(el.querySelector('message-content') || el) });
+  // shortcut: per-site selectors for ChatGPT, Claude, Gemini, Perplexity, Copilot, Meta AI, Grok, Kimi, DeepSeek, Qwen, Manus and MiniMax only; other sites export the whole <main>. Add a selector when a site needs it.
+  const user = '[data-message-author-role="user"], [data-testid="user-message"], user-query, [data-user-message-bubble], [data-message-bubble="right"], .fai-UserMessage__message, [data-message-role="user"], .segment-user, .ds-message:not(:has(.ds-markdown)), .user-message-content, .user-message-bubble-new';
+  const ai = '[data-message-author-role="assistant"], .font-claude-response, model-response, [data-markdown-text-style="assistant-message"], [data-renderer="lm"], [data-testid="markdown-reply"], [data-testid="assistant-message"], .segment-assistant .markdown-container, .ds-assistant-message-main-content, .response-message-content.phase-answer, .manus-markdown.chat-message-body, .matrix-markdown.message-content';
+  // Chat sites keep only the messages near the view in the page, so collect them while scrolling and merge in order.
+  const ID = ['data-index', 'data-message-id', 'data-turn-key', 'data-turn-id', 'data-virtual-list-item-key'];
+  const list = [], byKey = new Map(), blank = new Set(), filled = new Set();
+  const current = () => {
+    const found = [...document.querySelectorAll(`${user}, ${ai}`)];
+    return found.filter(el => !found.some(o => o !== el && o.contains(el)));
+  };
+  const snap = () => {
+    const seen = new Map(), owner = new Map();
+    const items = [];
+    for (const el of current()) {
+      const role = el.matches(user) ? 'You' : 'AI';
+      // Kimi: a question that is only a file has no .user-content.
+      const kimi = el.matches('.segment-user');
+      const part = el.querySelector(role === 'You' ? '.query-text, [data-testid="user-message-text"], .user-content' : 'message-content');
+      const body = part || el;
+      const holder = el.closest(ID.map(n => `[${n}]`).join());
+      const id = holder ? `${role}|${ID.map(n => holder.getAttribute(n)).join('|')}` : '';
+      const text = kimi && !part ? '' : body.textContent.trim();
+      if (!text) { blank.add(id || `${role}|${items.length}`); continue; } // not rendered yet, or only an attachment
+      if (id) filled.add(id);
+      // shortcut: without a site id, two messages with the same opening text count as one unless both are on screen together.
+      const base = `${id || role}|${text.slice(0, 80)}`, nth = seen.get(base) || 0;
+      // The same site id in a second place is a hidden copy of one message (Meta AI).
+      const place = holder?.closest('[data-message-id]');
+      if (place && nth && owner.get(base) !== place) continue;
+      owner.set(base, place);
+      seen.set(base, nth + 1);
+      items.push({ key: `${base}|${nth}`, role, size: text.length, body });
+    }
+    let after = null;
+    items.forEach((item, i) => {
+      let known = byKey.get(item.key);
+      if (!known) {
+        known = { key: item.key, role: item.role, size: -1 };
+        byKey.set(item.key, known);
+        const next = items.slice(i + 1).map(x => byKey.get(x.key)).find(Boolean);
+        list.splice(after ? list.indexOf(after) + 1 : next ? list.indexOf(next) : list.length, 0, known);
+      }
+      // Copy now: the site may remove or reuse this node on the next scroll.
+      if (item.size > known.size) { known.size = item.size; known.html = live ? item.body.cloneNode(true) : item.body.innerHTML; }
+      after = known;
+    });
+  };
+
+  let partial = false;
+  const first = current()[0];
+  let box = first?.parentElement;
+  while (box && !(box.scrollHeight > box.clientHeight + 50 && /auto|scroll/.test(getComputedStyle(box).overflowY))) box = box.parentElement;
+  if (first && !box) box = document.scrollingElement;
+  if (!box || box.scrollHeight <= box.clientHeight + 50) snap();
+  else {
+    const wait = ms => new Promise(done => setTimeout(done, ms));
+    const start = box.scrollTop;
+    const jump = y => box.scrollTo({ top: y, behavior: 'instant' });
+    const top = () => (getComputedStyle(box).flexDirection === 'column-reverse' ? box.clientHeight - box.scrollHeight : 0);
+    try {
+      // Go to the top until the page stops growing: older messages load on the way.
+      let height = -1, tries = 0;
+      for (; tries < 40 && box.scrollHeight !== height; tries++) { height = box.scrollHeight; jump(top()); await wait(500); }
+      // Collect from the top down only, so the order stays right wherever the reader was.
+      snap();
+      partial = tries === 40;
+      let steps = 0;
+      for (; steps < 500; steps++) {
+        const before = box.scrollTop;
+        jump(before + box.clientHeight * 0.6);
+        await wait(250);
+        snap();
+        if (Math.abs(box.scrollTop - before) < 2) break;
+      }
+      partial ||= steps === 500;
+    } finally {
+      jump(start);
+    }
+  }
+  const messages = list.map(({ role, html }) => ({ role, html }));
+  const skipped = [...blank].filter(k => !filled.has(k)).length;
   if (!messages.length) messages.push({ role: '', html: pick(document.querySelector('main') || document.body), whole: true });
-  return { title, messages };
+  return { title, messages, skipped, partial };
 }
 
+// Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0
 // Reader logic shared by the extension page and the iOS userscript overlay.
 // $: element by id. scroller: the scrolling element. active: whether keyboard shortcuts apply.
 function startReader({ $, scroller, active = () => true }) {
-const opts = () => ({ icons: $('icons').checked, boldHeadings: $('boldHeadings').checked });
+const opts = () => ({ icons: $('icons').checked, boldHeadings: $('boldHeadings').checked, outline: $('outline').checked });
 let chat, parts = [];
 
 function render() {
@@ -278,7 +414,7 @@ function render() {
   }));
 }
 
-const markdown = () => parts.map(p => (p.role ? `**${p.role}**\n\n` : '') + toMarkdown(p.el, opts())).join('\n\n---\n\n') + '\n';
+const markdown = () => toDocument(parts, chat, opts());
 
 async function copy(items, done) {
   try { await items(); $('status').textContent = done; } catch (e) { $('status').textContent = `Copy failed: ${e.message}`; }
@@ -360,13 +496,16 @@ return {
     render();
     $('status').textContent = c.messages.some(m => m.whole)
       ? 'Chat messages were not recognised, so the whole page is shown. Tip: select text first, then export.'
-      : `${c.messages.length} messages. If older ones are missing, scroll to the top of the chat and export again.`;
+      : `${c.messages.length} messages. Check that the first and last ones are there.`;
+    if (c.partial) $('status').textContent += ' Warning: the chat was too long to load completely, so some messages are missing.';
+    if (c.skipped) $('status').textContent += ` Warning: ${c.skipped} had no text (attachment, image or not loaded) and are not included.`;
   },
   stop: () => setScrolling(false),
 };
 }
 
-const CSS = ".box { --bg: #fff; --fg: #18181b; --soft: #f4f4f5; --line: #e4e4e7; --mut: #71717a; }\n@media (prefers-color-scheme: dark) { .box { --bg: #18181b; --fg: #f4f4f5; --soft: #27272a; --line: #3f3f46; --mut: #a1a1aa; } }\n.box { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.7 -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; }\nheader { position: sticky; top: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); font-size: 14px; }\n.grow { flex: 1; }\nbutton { padding: 7px 14px; border: 0; border-radius: 7px; background: #4f46e5; color: #fff; font-weight: 600; cursor: pointer; }\n#status, main { max-width: 800px; margin: 16px auto; padding: 0 16px; }\n#status { color: var(--mut); font-size: 13px; }\nsection { margin-bottom: 28px; overflow-wrap: break-word; }\nsection.you { background: var(--soft); border-radius: 12px; padding: 4px 16px; }\n.role { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--mut); }\npre { position: relative; overflow-x: auto; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 14px 16px; font: 13.5px/1.6 Menlo, Consolas, monospace; }\npre[data-lang] { padding-top: 32px; }\npre[data-lang]::before { content: attr(data-lang); position: absolute; top: 7px; left: 16px; color: #94a3b8; font-size: 11px; }\n:not(pre) > code { background: var(--soft); border-radius: 4px; padding: 1px 5px; font-size: .88em; }\ntable { display: block; overflow-x: auto; border-collapse: collapse; margin: 14px 0; }\nth, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }\nth, tr:nth-child(even) td { background: var(--soft); }\nblockquote { margin: 0; padding-left: 14px; border-left: 3px solid var(--line); color: var(--mut); }\ndialog { width: min(360px, 90vw); border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); }\ndialog form { display: flex; flex-direction: column; gap: 10px; }\ndialog h2, dialog p { margin: 0; }\ndialog p { overflow-wrap: anywhere; font: 13px Menlo, Consolas, monospace; }\ndialog select { width: 100%; padding: 7px; font: inherit; }\ndialog .cancel { background: var(--soft); color: var(--fg); }\n/* Phones: keep the sticky toolbar small so the chat stays readable. */\n@media (max-width: 600px) {\n  header { gap: 6px; padding: max(6px, env(safe-area-inset-top)) 8px 6px; font-size: 12px; }\n  header button { padding: 5px 9px; min-height: 32px; font-size: 12px; }\n  header img, header strong, .grow { display: none; }\n  header input[type=range] { width: 90px; }\n}\n@media print {\n  .box { --bg: #fff; --fg: #111; --soft: #f4f4f5; --line: #bbb; --mut: #555; }\n  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  header, #status, dialog { display: none !important; }\n  main { max-width: none; margin: 0; padding: 0; font-size: 12px; }\n  pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; background: #f4f4f5; color: #111; border: 1px solid #bbb; }\n  table { display: table; width: 100%; overflow: visible; }\n  /* Thonburi keeps Thai text copyable and searchable in the PDF; the system default scrambles it. */\n  .box { font-family: Thonburi, sans-serif; }\n  pre, code { font-family: Menlo, Consolas, Thonburi, monospace; }\n  /* A table moves whole to the next page. One taller than a page can only break between rows, repeating its header. */\n  table, tr, .role { break-inside: avoid; }\n  thead { display: table-header-group; }\n}\n.box { position: fixed; inset: 0; z-index: 2147483647; overflow: auto; -webkit-overflow-scrolling: touch; text-align: left; }\n.box[hidden], .fab[hidden] { display: none; }\n.fab { position: fixed; right: 10px; top: 38%; z-index: 2147483647; box-shadow: 0 4px 14px rgba(0,0,0,.4); }\nbutton { min-height: 36px; }\n@media print { .box { position: static; overflow: visible; } .fab { display: none; } }\n";
+const CSS = "/* Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0 */\n.box { --bg: #fff; --fg: #18181b; --soft: #f4f4f5; --line: #e4e4e7; --mut: #71717a; }\n@media (prefers-color-scheme: dark) { .box { --bg: #18181b; --fg: #f4f4f5; --soft: #27272a; --line: #3f3f46; --mut: #a1a1aa; } }\n.box { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.7 -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; }\nheader { position: sticky; top: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); font-size: 14px; }\n.grow { flex: 1; }\nbutton { padding: 7px 14px; border: 0; border-radius: 7px; background: #4f46e5; color: #fff; font-weight: 600; cursor: pointer; }\n#status, main { max-width: 800px; margin: 16px auto; padding: 0 16px; }\n#status { color: var(--mut); font-size: 13px; }\nsection { margin-bottom: 28px; overflow-wrap: break-word; }\nsection.you { background: var(--soft); border-radius: 12px; padding: 4px 16px; }\n.role { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--mut); }\npre { position: relative; overflow-x: auto; color-scheme: dark; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 14px 16px; font: 13.5px/1.6 Menlo, Consolas, monospace; }\npre[data-lang] { padding-top: 32px; }\npre[data-lang]::before { content: attr(data-lang); position: absolute; top: 7px; left: 16px; color: #94a3b8; font-size: 11px; }\n:not(pre) > code { background: var(--soft); border-radius: 4px; padding: 1px 5px; font-size: .88em; }\ntable { display: block; overflow-x: auto; border-collapse: collapse; margin: 14px 0; }\nth, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }\nth, tr:nth-child(even) td { background: var(--soft); }\nblockquote { margin: 0; padding-left: 14px; border-left: 3px solid var(--line); color: var(--mut); }\ndialog { width: min(360px, 90vw); border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); }\ndialog form { display: flex; flex-direction: column; gap: 10px; }\ndialog h2, dialog p { margin: 0; }\ndialog p { overflow-wrap: anywhere; font: 13px Menlo, Consolas, monospace; }\ndialog select { width: 100%; padding: 7px; font: inherit; }\ndialog .cancel { background: var(--soft); color: var(--fg); }\n/* Phones: keep the sticky toolbar small so the chat stays readable. */\n@media (max-width: 600px) {\n  header { gap: 6px; padding: max(6px, env(safe-area-inset-top)) 8px 6px; font-size: 12px; }\n  header button { padding: 5px 9px; min-height: 32px; font-size: 12px; }\n  header img, header strong, .grow { display: none; }\n  header input[type=range] { width: 90px; }\n}\n@media print {\n  .box { --bg: #fff; --fg: #111; --soft: #f4f4f5; --line: #bbb; --mut: #555; }\n  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  header, #status, dialog { display: none !important; }\n  main { max-width: none; margin: 0; padding: 0; font-size: 12px; }\n  pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; color-scheme: light; background: #f4f4f5; color: #111; border: 1px solid #bbb; }\n  table { display: table; width: 100%; overflow: visible; }\n  /* Thonburi keeps Thai text copyable and searchable in the PDF; the system default scrambles it. */\n  .box { font-family: Thonburi, sans-serif; }\n  pre, code { font-family: Menlo, Consolas, Thonburi, monospace; }\n  /* A table moves whole to the next page. One taller than a page can only break between rows, repeating its header. */\n  table, tr, .role { break-inside: avoid; }\n  thead { display: table-header-group; }\n}\n/* Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0 */\n.box { position: fixed; inset: 0; z-index: 2147483647; overflow: auto; -webkit-overflow-scrolling: touch; text-align: left; }\n.box[hidden], .fab[hidden] { display: none; }\n.fab { position: fixed; right: 10px; top: 38%; z-index: 2147483647; box-shadow: 0 4px 14px rgba(0,0,0,.4); }\nbutton { min-height: 36px; }\n@media print { .box { position: static; overflow: visible; } .fab { display: none; } }\n";
+// Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0
 // iOS Safari (Userscripts app): a floating button opens the same reader as an overlay on the chat page.
 // Built with createElement only, so pages with Trusted Types (Gemini) do not block it. CSS is injected by build.sh.
 const mk = (tag, attrs = {}, ...kids) => {
@@ -380,12 +519,13 @@ const root = host.attachShadow({ mode: 'open' });
 const button = (id, text, extra = {}) => mk('button', { id, type: 'button', ...extra }, text);
 const check = (id, text) => { const i = mk('input', { type: 'checkbox', id }); i.checked = true; return mk('label', {}, i, ` ${text}`); };
 const choice = (value, text, cls = '') => mk('button', { value, class: cls }, text);
-const ai = mk('select', { id: 'ai' }, ...[['chatgpt', 'ChatGPT'], ['gemini', 'Gemini'], ['claude', 'Claude'], ['copilot', 'Copilot'], ['deepseek', 'DeepSeek'], ['kimi', 'Kimi'], ['qwen', 'Qwen'], ['grok', 'Grok'], ['minimax', 'MiniMax'], ['manus', 'Manus'], ['meta', 'Meta AI'], ['muse', 'Muse'], ['ai', 'Other']].map(([v, t]) => new Option(t, v)));
+const ai = mk('select', { id: 'ai' }, ...[['chatgpt', 'ChatGPT'], ['gemini', 'Gemini'], ['claude', 'Claude'], ['copilot', 'Copilot'], ['deepseek', 'DeepSeek'], ['kimi', 'Kimi'], ['qwen', 'Qwen'], ['grok', 'Grok'], ['minimax', 'MiniMax'], ['manus', 'Manus'], ['meta', 'Meta AI'], ['muse', 'Muse'], ['perplexity', 'Perplexity'], ['ai', 'Other']].map(([v, t]) => new Option(t, v)));
 
 const open = button('open', 'AI Export', { class: 'fab' });
 const box = mk('div', { class: 'box', hidden: '' },
   mk('header', {},
     button('close', '✕ Close'), check('icons', 'Remove icons / emoji'), check('boldHeadings', 'Bold headings'),
+    mk('label', {}, mk('input', { type: 'checkbox', id: 'outline' }), ' Outline (# H1, H2…)'),
     button('scroll', '▶ Auto Scroll', { 'aria-pressed': 'false' }),
     mk('label', {}, 'Speed ', mk('input', { type: 'range', id: 'speed', min: '10', max: '400', step: '10', value: '60' }), ' ', mk('output', { id: 'speedNum' }, '60'), ' px/s'),
     button('export', 'Export…'), button('copyMd', 'Copy for Notion (MD)'), button('copyRich', 'Copy for Notes / Docs')),
@@ -403,8 +543,18 @@ document.documentElement.append(host);
 
 const reader = startReader({ $: id => root.getElementById(id), scroller: box, active: () => !box.hidden });
 const $ = id => root.getElementById(id);
-open.onclick = () => {
-  const chat = grab(true); // read before the overlay opens, while any text selection is still there
+open.onclick = async () => {
+  const label = open.textContent;
+  open.disabled = true;
+  open.textContent = 'Reading…';
+  let chat;
+  try {
+    chat = await grab(true); // reads any text selection before the overlay opens
+  } catch (e) {
+    chat = { error: e.message };
+  }
+  open.disabled = false;
+  open.textContent = label;
   chat.host = location.hostname;
   box.hidden = false;
   open.hidden = true;

@@ -1,3 +1,4 @@
+// Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0
 // iOS Safari (Userscripts app): a floating button opens the same reader as an overlay on the chat page.
 // Built with createElement only, so pages with Trusted Types (Gemini) do not block it. CSS is injected by build.sh.
 const mk = (tag, attrs = {}, ...kids) => {
@@ -11,12 +12,13 @@ const root = host.attachShadow({ mode: 'open' });
 const button = (id, text, extra = {}) => mk('button', { id, type: 'button', ...extra }, text);
 const check = (id, text) => { const i = mk('input', { type: 'checkbox', id }); i.checked = true; return mk('label', {}, i, ` ${text}`); };
 const choice = (value, text, cls = '') => mk('button', { value, class: cls }, text);
-const ai = mk('select', { id: 'ai' }, ...[['chatgpt', 'ChatGPT'], ['gemini', 'Gemini'], ['claude', 'Claude'], ['copilot', 'Copilot'], ['deepseek', 'DeepSeek'], ['kimi', 'Kimi'], ['qwen', 'Qwen'], ['grok', 'Grok'], ['minimax', 'MiniMax'], ['manus', 'Manus'], ['meta', 'Meta AI'], ['muse', 'Muse'], ['ai', 'Other']].map(([v, t]) => new Option(t, v)));
+const ai = mk('select', { id: 'ai' }, ...[['chatgpt', 'ChatGPT'], ['gemini', 'Gemini'], ['claude', 'Claude'], ['copilot', 'Copilot'], ['deepseek', 'DeepSeek'], ['kimi', 'Kimi'], ['qwen', 'Qwen'], ['grok', 'Grok'], ['minimax', 'MiniMax'], ['manus', 'Manus'], ['meta', 'Meta AI'], ['muse', 'Muse'], ['perplexity', 'Perplexity'], ['ai', 'Other']].map(([v, t]) => new Option(t, v)));
 
 const open = button('open', 'AI Export', { class: 'fab' });
 const box = mk('div', { class: 'box', hidden: '' },
   mk('header', {},
     button('close', '✕ Close'), check('icons', 'Remove icons / emoji'), check('boldHeadings', 'Bold headings'),
+    mk('label', {}, mk('input', { type: 'checkbox', id: 'outline' }), ' Outline (# H1, H2…)'),
     button('scroll', '▶ Auto Scroll', { 'aria-pressed': 'false' }),
     mk('label', {}, 'Speed ', mk('input', { type: 'range', id: 'speed', min: '10', max: '400', step: '10', value: '60' }), ' ', mk('output', { id: 'speedNum' }, '60'), ' px/s'),
     button('export', 'Export…'), button('copyMd', 'Copy for Notion (MD)'), button('copyRich', 'Copy for Notes / Docs')),
@@ -34,8 +36,18 @@ document.documentElement.append(host);
 
 const reader = startReader({ $: id => root.getElementById(id), scroller: box, active: () => !box.hidden });
 const $ = id => root.getElementById(id);
-open.onclick = () => {
-  const chat = grab(true); // read before the overlay opens, while any text selection is still there
+open.onclick = async () => {
+  const label = open.textContent;
+  open.disabled = true;
+  open.textContent = 'Reading…';
+  let chat;
+  try {
+    chat = await grab(true); // reads any text selection before the overlay opens
+  } catch (e) {
+    chat = { error: e.message };
+  }
+  open.disabled = false;
+  open.textContent = label;
   chat.host = location.hostname;
   box.hidden = false;
   open.hidden = true;

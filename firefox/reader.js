@@ -1,7 +1,8 @@
+// Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0
 // Reader logic shared by the extension page and the iOS userscript overlay.
 // $: element by id. scroller: the scrolling element. active: whether keyboard shortcuts apply.
 function startReader({ $, scroller, active = () => true }) {
-const opts = () => ({ icons: $('icons').checked, boldHeadings: $('boldHeadings').checked });
+const opts = () => ({ icons: $('icons').checked, boldHeadings: $('boldHeadings').checked, outline: $('outline').checked });
 let chat, parts = [];
 
 function render() {
@@ -16,7 +17,7 @@ function render() {
   }));
 }
 
-const markdown = () => parts.map(p => (p.role ? `**${p.role}**\n\n` : '') + toMarkdown(p.el, opts())).join('\n\n---\n\n') + '\n';
+const markdown = () => toDocument(parts, chat, opts());
 
 async function copy(items, done) {
   try { await items(); $('status').textContent = done; } catch (e) { $('status').textContent = `Copy failed: ${e.message}`; }
@@ -98,7 +99,9 @@ return {
     render();
     $('status').textContent = c.messages.some(m => m.whole)
       ? 'Chat messages were not recognised, so the whole page is shown. Tip: select text first, then export.'
-      : `${c.messages.length} messages. If older ones are missing, scroll to the top of the chat and export again.`;
+      : `${c.messages.length} messages. Check that the first and last ones are there.`;
+    if (c.partial) $('status').textContent += ' Warning: the chat was too long to load completely, so some messages are missing.';
+    if (c.skipped) $('status').textContent += ` Warning: ${c.skipped} had no text (attachment, image or not loaded) and are not included.`;
   },
   stop: () => setScrolling(false),
 };

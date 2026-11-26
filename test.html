@@ -1,6 +1,10 @@
-<!DOCTYPE html><meta charset="utf-8"><title>running</title><pre id="out"></pre>
+<!DOCTYPE html>
+<!-- Untouch Flow AI Export | (c) 2026 Sufarwee Dunyamat AKA SufarweeDeDev (Full Stack Developer, SEO Expert, SEM Specialist, DevOps) | https://github.com/sufarwee | Apache-2.0 -->
+<meta charset="utf-8"><title>running</title><pre id="out"></pre>
 <script src="lib.js"></script>
+<script src="grab.js"></script>
 <script>
+(async () => {
 const o = { icons: true, boldHeadings: true };
 const fail = [];
 const ok = (name, c) => { if (!c) fail.push(name); };
@@ -39,6 +43,7 @@ ok('name', name('gemini.google.com', 'การ config server - Google Gemini') 
 ok('name 20 chars', name('chatgpt.com', 'abcdefghij klmnopqrst uvwxyz') === 'chatgpt-abcdefghijklmnopqrst-28102026.md');
 ok('name from question', name('gemini.google.com', 'Google Gemini', '<p>Setup nginx?</p>') === 'gemini-Setupnginx-28102026.md');
 ok('name unsafe', name('chat.deepseek.com', '../a/b: #1 🚀 | DeepSeek') === 'deepseek-ab1-28102026.md');
+ok('name perplexity', name('www.perplexity.ai', 'x - Perplexity') === 'perplexity-x-28102026.md');
 ok('name chosen ai', fileName({ host: 'example.com', title: 'x' }, day, 'gemini') === 'gemini-x-28102026.md');
 ok('name unknown', name('www.example.com', '') === 'example-chat-28102026.md');
 // userscript path: live nodes in, page untouched
@@ -50,6 +55,67 @@ ok('live node', toMarkdown(clean(live, o), o) === '```bash\nls\n```');
 const typed = document.createElement('div'); typed.append('a', document.createElement('br'), 'b <i>');
 ok('live user text', toMarkdown(clean(plainToHtml(typed), o), o) === 'a\nb <i>');
 ok('page untouched', live.innerHTML === before);
+// per-site message selectors, as seen on the live sites
+const site = async (name, html) => { const box = document.createElement('main'); box.innerHTML = html; document.body.append(box);
+  ok('grab ' + name, (await grab(false)).messages.map(x => x.role + ':' + x.html).join() === 'You:q,AI:a'); box.remove(); };
+await site('chatgpt', '<div data-user-message-bubble="true">q</div><div data-markdown-text-style="assistant-message">a</div>');
+await site('perplexity', '<div data-message-bubble="right">q</div><div data-renderer="lm">a</div>');
+await site('copilot', '<div class="fai-UserMessage__message">q</div><div data-testid="markdown-reply">a</div>');
+await site('meta', '<div data-message-role="user">q</div><div data-message-role="assistant"><div data-testid="assistant-message">a</div></div>');
+await site('grok', '<div data-testid="user-message">q</div><div data-testid="assistant-message">a</div>');
+await site('kimi', '<div class="segment-user"><div class="user-content">q</div></div><div class="segment-assistant"><div class="markdown-container">a</div></div>');
+await site('deepseek', '<div class="ds-message">q</div><div class="ds-message"><div><div class="ds-markdown">think</div></div><div class="ds-markdown ds-assistant-message-main-content">a</div></div>');
+await site('qwen', '<p class="user-message-content">q</p><div class="response-message-content phase-answer">a</div>');
+await site('manus', '<span class="user-message-bubble-new">q</span><div class="manus-markdown chat-message-body">a</div>');
+// code block headers must not leak into the text; the language name is kept
+const code = html => toMarkdown(clean(html, o), o);
+ok('kimi header', code('<div class="segment-code"><header class="segment-code-header"><span class="segment-code-lang">TypeScript</span><div>Copy</div></header><div><pre class="language-plain"><code>x</code></pre></div></div>') === '```typescript\nx\n```');
+ok('grok header', code('<div data-code-card><div><bdi>JSON</bdi></div><pre><code>{}</code></pre></div>') === '```json\n{}\n```');
+ok('deepseek header', code('<div class="md-code-block"><div class="md-code-block-banner-wrap"><span>bash</span><span>Copy</span></div><pre>ls</pre></div>') === '```bash\nls\n```');
+ok('qwen header', code('<pre class="qwen-markdown-code"><div class="qwen-markdown-code-header-wrapper"><div class="qwen-markdown-code-header"><div>bash</div></div></div><div><code>ls</code></div></pre>') === '```bash\nls\n```');
+ok('monaco order', code('<pre><div class="view-lines"><div class="view-line" style="top:19px">b\u00a0c</div><div class="view-line" style="top:0px">a</div></div></pre>') === '```\na\nb c\n```');
+ok('copilot card', code('<div role="group" aria-label="Code Preview"><span>Error: x</span><div>Bash</div><div role="textbox"><div data-line-number="2"></div><div data-line-index="1">  ls -a # hi</div><div data-line-index="0">cd /tmp</div></div></div>') === '```bash\ncd /tmp\n  ls -a # hi\n```');
+await site('blank skipped', '<div data-user-message-bubble>q</div><div data-markdown-text-style="assistant-message"> </div><div data-markdown-text-style="assistant-message">a</div>');
+ok('meta header', code('<div class="ur-code-block"><div class="ur-code-block__header"><span class="ur-code-block__metadata">Bash</span></div><div><pre>ls</pre></div></div>') === '```bash\nls\n```');
+ok('manus header', code('<div><div data-source-locator-ignore><span>Bash</span><svg class="lucide-copy"></svg></div><div><pre><code>ls</code></pre></div></div>') === '```bash\nls\n```');
+ok('chatgpt header', code('<div class="CodeBlock-a1"><div class="Root-b"><div><div class="truncate">Bash</div></div><div><div><pre><code>ls</code></pre></div></div></div></div>') === '```bash\nls\n```');
+await site('minimax', '<div data-message-role="user"><div>file.png</div><div data-testid="user-message-text">q</div></div><div data-message-role="assistant"><div>thinking</div><div class="matrix-markdown message-content">a</div></div>');
+{
+  const port = document.createElement('div'); port.style.cssText = 'height:200px;overflow-y:auto';
+  const space = document.createElement('div'); space.style.cssText = 'position:relative;height:4000px'; port.append(space); document.body.append(port);
+  const draw = () => { const from = Math.max(0, Math.floor(port.scrollTop / 100) - 1);
+    space.replaceChildren(...Array.from({ length: 4 }, (_, k) => from + k).filter(i => i < 40).map(i => { const row = document.createElement('div'); row.dataset.index = i; row.style.cssText = `position:absolute;top:${i * 100}px;height:100px`;
+      const m = document.createElement('div'); m.dataset.testid = i % 2 ? 'assistant-message' : 'user-message'; m.textContent = i === 7 ? ' ' : i % 3 ? 'm' + i : 'same'; row.append(m); return row; })); };
+  // the page redraws on scroll, as virtualised lists do
+  port.scrollTo = ({ top }) => { port.scrollTop = top; draw(); };
+  port.scrollTop = 1234; draw();
+  const got = await grab(false);
+  const want = Array.from({ length: 40 }, (_, i) => i).filter(i => i !== 7).map(i => (i % 2 ? 'AI:' : 'You:') + (i % 3 ? 'm' + i : 'same'));
+  ok('virtual list complete and in order', got.messages.map(x => x.role + ':' + x.html).join() === want.join());
+  ok('virtual list reports blank', got.skipped === 1 && got.partial === false);
+  ok('scroll restored', port.scrollTop === 1234);
+  port.remove();
+}
+{
+  const twin = document.createElement('main');
+  twin.innerHTML = [1, 2].map(() => '<div data-message-id="a"><div data-testid="user-message">q</div></div><div data-message-id="b"><div data-testid="assistant-message">a</div></div>').join('');
+  document.body.append(twin);
+  ok('hidden copy skipped', (await grab(false)).messages.map(x => x.role + ':' + x.html).join() === 'You:q,AI:a');
+  twin.remove();
+}
+{
+  const part = (role, html) => ({ role, el: clean(html, o) });
+  const parts = [part('You', '<p>ทำ SEO ยังไง</p>'), part('AI', '<h2>พื้นฐาน</h2><p>x</p><h3>ย่อย</h3><pre><code># keep</code></pre>'), part('You', '<p>' + 'ก'.repeat(90) + '</p>'), part('AI', '<h1>A</h1>')];
+  const doc = toDocument(parts, { title: 'แผน SEO - Claude' }, { ...o, outline: true });
+  ok('outline', doc.startsWith('# แผน SEO\n\n## 1. ทำ SEO ยังไง\n\n**You**') && doc.includes('\n### พื้นฐาน\n') && doc.includes('\n#### ย่อย\n') && doc.includes('```\n# keep\n```') && doc.includes('\n## 2. ' + 'ก'.repeat(80) + '…\n') && doc.includes('\n### A\n'));
+  ok('outline off', !toDocument(parts.slice(0, 2), { title: 't' }, o).replace(/```[\s\S]*?```/g, '').match(/^#/m));
+}
+{
+  const box = document.createElement('main'); box.innerHTML = '<div class="segment-user"><div>file.pdf Copy Edit</div></div><div class="segment-assistant"><div class="markdown-container">a</div></div>';
+  document.body.append(box); const got = await grab(false);
+  ok('kimi file-only question is reported', got.skipped === 1 && got.messages.map(x => x.role).join() === 'AI'); box.remove();
+}
 document.title = fail.length ? 'FAIL ' + fail.join(', ') : 'PASS';
 out.textContent = r + '\n=====\n' + p;
+})().catch(e => { document.title = 'FAIL ' + e.message; });
 </script>
